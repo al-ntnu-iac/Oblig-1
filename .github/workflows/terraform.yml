@@ -12,6 +12,14 @@ on:
           - dev
           - test
           - prod
+      action:
+        description: "Plan only or apply changes"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+        default: plan
 
 permissions:
   id-token: write
@@ -19,9 +27,9 @@ permissions:
 
 jobs:
   terraform:
+    if: ${{ inputs.environment == 'dev' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    if: ${{ inputs.environment == 'dev' }}
 
     env:
       ARM_USE_OIDC: "true"
@@ -50,7 +58,7 @@ jobs:
       - name: Terraform Init - Network
         working-directory: stacks/network
         run: |
-          terraform init \
+          terraform init -input=false \
             -backend-config="../../shared/backend.hcl" \
             -backend-config="key=${{ inputs.environment }}/network.tfstate"
 
@@ -59,4 +67,12 @@ jobs:
         env:
           TF_VAR_environment: ${{ inputs.environment }}
           TF_VAR_address_space: "10.10.0.0/16"
-        run: terraform plan -input=false -no-color
+        run: terraform plan -input=false -no-color -out=network.tfplan
+
+      - name: Terraform Apply - Network
+        if: ${{ inputs.action == 'apply' }}
+        working-directory: stacks/network
+        env:
+          TF_VAR_environment: ${{ inputs.environment }}
+          TF_VAR_address_space: "10.10.0.0/16"
+        run: terraform apply -input=false -no-color network.tfplan
