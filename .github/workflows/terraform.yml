@@ -21,7 +21,7 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-        if: ${{ inputs.environment == 'dev' }}
+    if: ${{ inputs.environment == 'dev' }}
 
     env:
       ARM_USE_OIDC: "true"
