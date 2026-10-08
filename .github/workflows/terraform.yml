@@ -38,6 +38,13 @@ jobs:
       ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      TF_VAR_environment: ${{ inputs.environment }}
+      TF_VAR_address_space: "10.10.0.0/16"
+      TF_VAR_backend_resource_group_name: "rg-tfstate-al"
+      TF_VAR_backend_storage_account_name: "tfstateal2026"
+      TF_VAR_backend_container_name: "tfstate"
+      TF_VAR_admin_password: ${{ secrets.TF_VAR_ADMIN_PASSWORD }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -64,15 +71,25 @@ jobs:
 
       - name: Terraform Plan - Network
         working-directory: stacks/network
-        env:
-          TF_VAR_environment: ${{ inputs.environment }}
-          TF_VAR_address_space: "10.10.0.0/16"
         run: terraform plan -input=false -no-color -out=network.tfplan
 
       - name: Terraform Apply - Network
         if: ${{ inputs.action == 'apply' }}
         working-directory: stacks/network
-        env:
-          TF_VAR_environment: ${{ inputs.environment }}
-          TF_VAR_address_space: "10.10.0.0/16"
         run: terraform apply -input=false -no-color network.tfplan
+
+      - name: Terraform Init - App
+        working-directory: stacks/app
+        run: |
+          terraform init -input=false \
+            -backend-config="../../shared/backend.hcl" \
+            -backend-config="key=${{ inputs.environment }}/app.tfstate"
+
+      - name: Terraform Plan - App
+        working-directory: stacks/app
+        run: terraform plan -input=false -no-color -out=app.tfplan
+
+      - name: Terraform Apply - App
+        if: ${{ inputs.action == 'apply' }}
+        working-directory: stacks/app
+        run: terraform apply -input=false -no-color app.tfplan
